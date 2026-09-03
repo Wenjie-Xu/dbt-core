@@ -517,6 +517,92 @@ class TestMicrobatchBuilder:
         assert len(actual_batches) == len(expected_batches)
         assert actual_batches == expected_batches
 
+    @pytest.mark.parametrize(
+        "batch_size,batch_interval,start,end,expected_batches",
+        [
+            (
+                BatchSize.hour,
+                2,
+                datetime(2026, 9, 3, 0, 0, tzinfo=pytz.UTC),
+                datetime(2026, 9, 3, 6, 0, tzinfo=pytz.UTC),
+                [
+                    (
+                        datetime(2026, 9, 3, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2026, 9, 3, 2, 0, tzinfo=pytz.UTC),
+                    ),
+                    (
+                        datetime(2026, 9, 3, 2, 0, tzinfo=pytz.UTC),
+                        datetime(2026, 9, 3, 4, 0, tzinfo=pytz.UTC),
+                    ),
+                    (
+                        datetime(2026, 9, 3, 4, 0, tzinfo=pytz.UTC),
+                        datetime(2026, 9, 3, 6, 0, tzinfo=pytz.UTC),
+                    ),
+                ],
+            ),
+            (
+                BatchSize.day,
+                2,
+                datetime(2026, 9, 1, tzinfo=pytz.UTC),
+                datetime(2026, 9, 5, tzinfo=pytz.UTC),
+                [
+                    (
+                        datetime(2026, 9, 1, tzinfo=pytz.UTC),
+                        datetime(2026, 9, 3, tzinfo=pytz.UTC),
+                    ),
+                    (
+                        datetime(2026, 9, 3, tzinfo=pytz.UTC),
+                        datetime(2026, 9, 5, tzinfo=pytz.UTC),
+                    ),
+                ],
+            ),
+            (
+                BatchSize.month,
+                2,
+                datetime(2026, 1, 1, tzinfo=pytz.UTC),
+                datetime(2026, 5, 1, tzinfo=pytz.UTC),
+                [
+                    (
+                        datetime(2026, 1, 1, tzinfo=pytz.UTC),
+                        datetime(2026, 3, 1, tzinfo=pytz.UTC),
+                    ),
+                    (
+                        datetime(2026, 3, 1, tzinfo=pytz.UTC),
+                        datetime(2026, 5, 1, tzinfo=pytz.UTC),
+                    ),
+                ],
+            ),
+            (
+                BatchSize.year,
+                2,
+                datetime(2020, 1, 1, tzinfo=pytz.UTC),
+                datetime(2024, 1, 1, tzinfo=pytz.UTC),
+                [
+                    (
+                        datetime(2020, 1, 1, tzinfo=pytz.UTC),
+                        datetime(2022, 1, 1, tzinfo=pytz.UTC),
+                    ),
+                    (
+                        datetime(2022, 1, 1, tzinfo=pytz.UTC),
+                        datetime(2024, 1, 1, tzinfo=pytz.UTC),
+                    ),
+                ],
+            ),
+        ],
+    )
+    def test_build_batches_with_batch_interval(
+        self, microbatch_model, batch_size, batch_interval, start, end, expected_batches
+    ):
+        microbatch_model.config.batch_size = batch_size
+        microbatch_model.config.batch_interval = batch_interval
+        microbatch_builder = MicrobatchBuilder(
+            model=microbatch_model, is_incremental=True, event_time_start=None, event_time_end=None
+        )
+
+        actual_batches = microbatch_builder.build_batches(start, end)
+
+        assert actual_batches == expected_batches
+
     def test_build_jinja_context_for_incremental_batch(self, microbatch_model):
         context = MicrobatchBuilder.build_jinja_context_for_batch(
             model=microbatch_model,

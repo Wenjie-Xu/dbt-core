@@ -1470,8 +1470,8 @@ class ManifestLoader:
                         )
 
                     # Optional config: batch_interval (positive int)
-                    # Currently only applies to batch_size 'minute', where it defines how
-                    # many minutes each batch spans. `bool` is explicitly rejected even
+                    # It defines how many units of batch_size each batch spans. `bool`
+                    # is explicitly rejected even
                     # though it is a subclass of `int`.
                     batch_interval = node.config.batch_interval
                     if batch_interval is not None and (

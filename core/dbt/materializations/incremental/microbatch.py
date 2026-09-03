@@ -39,13 +39,15 @@ class MicrobatchBuilder:
         self.default_end_time = default_end_time or datetime.now(pytz.UTC)
 
     def _batch_interval(self) -> int:
-        """The configured `batch_interval`, defaulting to 1 (a single unit of `batch_size`).
-
-        Currently only meaningful for `batch_size: minute`, where it defines how many
-        minutes each batch spans. Validated as a positive int when minute batches are built
-        (see `truncate_timestamp`); a non-positive interval is not silently accepted.
-        """
-        return self.model.config.batch_interval or 1
+        """Return the configured interval, defaulting to one unit."""
+        batch_interval = self.model.config.batch_interval
+        if batch_interval is None or not isinstance(batch_interval, int) or isinstance(batch_interval, bool):
+            return 1
+        if batch_interval <= 0:
+            raise DbtRuntimeError(
+                f"Microbatch 'batch_interval' must be a positive int, but got: {batch_interval}."
+            )
+        return batch_interval
 
     def build_end_time(self):
         """Defaults the end_time to the current time in UTC unless a non `None` event_time_end was provided"""
@@ -156,7 +158,7 @@ class MicrobatchBuilder:
         you have a batch size of a day, and an offset of +1, then the returned value ends up being only one
         second later, 2024-09-18 00:00:00.
 
-        For `BatchSize.minute`, the offset moves by one configured `batch_interval` (in minutes).
+        The offset moves by one configured `batch_interval` of the selected batch size.
 
         2024-09-17 16:06:00 + Batchsize.minute +1 (batch_interval=20) -> 2024-09-17 16:20:00
         2024-09-17 16:06:00 + Batchsize.hour -1 -> 2024-09-17 15:00:00
@@ -174,12 +176,12 @@ class MicrobatchBuilder:
         if batch_size == BatchSize.minute:
             offset_timestamp = truncated + timedelta(minutes=offset * batch_interval)
         elif batch_size == BatchSize.hour:
-            offset_timestamp = truncated + timedelta(hours=offset)
+            offset_timestamp = truncated + timedelta(hours=offset * batch_interval)
         elif batch_size == BatchSize.day:
-            offset_timestamp = truncated + timedelta(days=offset)
+            offset_timestamp = truncated + timedelta(days=offset * batch_interval)
         elif batch_size == BatchSize.month:
             offset_timestamp = truncated
-            for _ in range(abs(offset)):
+            for _ in range(abs(offset) * batch_interval):
                 if offset < 0:
                     offset_timestamp = offset_timestamp - timedelta(days=1)
                 else:
@@ -188,7 +190,7 @@ class MicrobatchBuilder:
                     offset_timestamp, batch_size
                 )
         elif batch_size == BatchSize.year:
-            offset_timestamp = truncated.replace(year=truncated.year + offset)
+            offset_timestamp = truncated.replace(year=truncated.year + offset * batch_interval)
 
         return offset_timestamp
 
@@ -200,6 +202,8 @@ class MicrobatchBuilder:
 
         For `BatchSize.minute`, the timestamp is truncated to the nearest lower boundary
         aligned to `batch_interval` minutes within the hour (e.g. interval=20: 10:07 -> 10:00).
+        Other batch sizes are truncated to their normal unit boundary; `batch_interval`
+        controls the distance between those boundaries.
 
         2024-09-17 16:06:00 + Batchsize.minute (batch_interval=20) -> 2024-09-17 16:00:00
         2024-09-17 16:06:00 + Batchsize.hour -> 2024-09-17 16:00:00
