@@ -1052,7 +1052,7 @@ class ProviderContext(ManifestContext):
             and self.model.config.get("incremental_strategy") == "microbatch"
             and self.model.batch is not None
         ):
-            split_suffix = MicrobatchBuilder.format_batch_start(
+            split_suffix = MicrobatchBuilder.format_batch_start_for_filename(
                 self.model.batch.event_time_start,
                 self.model.config.batch_size,
             )

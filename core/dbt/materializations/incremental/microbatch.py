@@ -274,6 +274,13 @@ class MicrobatchBuilder:
         return MicrobatchBuilder.format_batch_start(start_time, batch_size).replace("-", "")
 
     @staticmethod
+    def format_batch_start_for_filename(batch_start: datetime, batch_size: BatchSize) -> str:
+        batch_start = normalize_datetime_to_utc(batch_start).astimezone(
+            pytz.timezone("Asia/Shanghai")
+        )
+        return MicrobatchBuilder.format_batch_start(batch_start, batch_size)
+
+    @staticmethod
     def format_batch_start(batch_start: datetime, batch_size: BatchSize) -> str:
         """Format the passed in datetime based on the batch_size.
 

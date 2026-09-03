@@ -380,6 +380,30 @@ class TestMicrobatchOffsetBegin(BaseMicrobatchTest):
         assert "batch start: 2020-01-01 00:40:00+00:00" in logs
         assert "batch end: 2020-01-01 01:00:00+00:00" in logs
 
+        for batch_suffix in (
+            "2020-01-01T0800",
+            "2020-01-01T0820",
+            "2020-01-01T0840",
+        ):
+            assert read_file(
+                project.project_root,
+                "target",
+                "compiled",
+                "test",
+                "models",
+                "microbatch_model",
+                f"microbatch_model_{batch_suffix}.sql",
+            )
+            assert read_file(
+                project.project_root,
+                "target",
+                "run",
+                "test",
+                "models",
+                "microbatch_model",
+                f"microbatch_model_{batch_suffix}.sql",
+            )
+
 
 class TestMicrobatchInvalidFullRefreshRange(BaseMicrobatchTest):
     def test_invalid_range_preserves_existing_relation(self, project):
@@ -930,7 +954,7 @@ class TestMicrobatchCompiledRunPathsHourly(BaseMicrobatchTest):
             "test",
             "models",
             "microbatch_model",
-            "microbatch_model_2020-01-03T13.sql",
+            "microbatch_model_2020-01-03T21.sql",
         )
         assert read_file(
             project.project_root,
@@ -939,7 +963,7 @@ class TestMicrobatchCompiledRunPathsHourly(BaseMicrobatchTest):
             "test",
             "models",
             "microbatch_model",
-            "microbatch_model_2020-01-03T13.sql",
+            "microbatch_model_2020-01-03T21.sql",
         )
 
 

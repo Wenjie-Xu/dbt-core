@@ -910,6 +910,29 @@ class TestMicrobatchBuilder:
         )
 
     @pytest.mark.parametrize(
+        "batch_size,batch_start,expected_formatted_batch_start",
+        [
+            (BatchSize.minute, datetime(2026, 9, 3, 8, tzinfo=pytz.UTC), "2026-09-03T1600"),
+            (BatchSize.minute, datetime(2026, 9, 3, 16, tzinfo=pytz.UTC), "2026-09-04T0000"),
+            (BatchSize.day, datetime(2026, 9, 3, 16, tzinfo=pytz.UTC), "2026-09-04"),
+            (BatchSize.month, datetime(2026, 9, 3, 16, tzinfo=pytz.UTC), "2026-09"),
+            (BatchSize.year, datetime(2026, 9, 3, 16, tzinfo=pytz.UTC), "2026"),
+        ],
+    )
+    def test_format_batch_start_for_filename(
+        self, batch_size: BatchSize, batch_start: datetime, expected_formatted_batch_start: str
+    ) -> None:
+        assert (
+            MicrobatchBuilder.format_batch_start_for_filename(batch_start, batch_size)
+            == expected_formatted_batch_start
+        )
+
+    def test_batch_id_keeps_utc_semantics(self):
+        batch_start = datetime(2026, 9, 3, 16, tzinfo=pytz.UTC)
+
+        assert MicrobatchBuilder.batch_id(batch_start, BatchSize.minute) == "20260903T1600"
+
+    @pytest.mark.parametrize(
         "timestamp,batch_size,expected_datetime",
         [
             (

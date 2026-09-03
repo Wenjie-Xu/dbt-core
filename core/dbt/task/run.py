@@ -462,7 +462,7 @@ class MicrobatchBatchRunner(ModelRunner):
             self.node,
             manifest,
             {},
-            split_suffix=MicrobatchBuilder.format_batch_start(
+            split_suffix=MicrobatchBuilder.format_batch_start_for_filename(
                 batch[0], self.node.config.batch_size
             ),
         )
