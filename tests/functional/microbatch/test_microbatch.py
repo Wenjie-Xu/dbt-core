@@ -58,6 +58,18 @@ microbatch_model_sql = """
 select * from {{ ref('input_model') }}
 """
 
+microbatch_model_offset_begin_sql = """
+{{ config(materialized='incremental', incremental_strategy='microbatch', unique_key='id', event_time='event_time', batch_size='minute', batch_interval=20, begin='2020-01-01T08:07:00+08:00') }}
+{{ log("batch start: " ~ model.batch.event_time_start, info=True) }}
+{{ log("batch end: " ~ model.batch.event_time_end, info=True) }}
+select * from {{ ref('input_model') }}
+"""
+
+microbatch_model_future_begin_sql = """
+{{ config(materialized='incremental', incremental_strategy='microbatch', unique_key='id', event_time='event_time', batch_size='day', begin='2020-01-05T08:00:00+00:00') }}
+select * from {{ ref('input_model') }}
+"""
+
 microbatch_model_hour_sql = """
 {{ config(materialized='incremental', incremental_strategy='microbatch', unique_key='id', event_time='event_time', batch_size='hour', begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0)) }}
 select * from {{ ref('input_model') }}
@@ -347,6 +359,45 @@ class TestMicrobatchCLI(BaseMicrobatchTest):
 
 class TestMicrobatchCLIBuild(TestMicrobatchCLI):
     CLI_COMMAND_NAME = "build"
+
+
+class TestMicrobatchOffsetBegin(BaseMicrobatchTest):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "input_model.sql": input_model_sql,
+            "microbatch_model.sql": microbatch_model_offset_begin_sql,
+        }
+
+    def test_offset_begin_builds_utc_batches(self, project):
+        with patch_microbatch_end_time("2020-01-01 01:00:00"):
+            _, logs = run_dbt_and_capture(["run"])
+
+        assert "batch start: 2020-01-01 00:00:00+00:00" in logs
+        assert "batch end: 2020-01-01 00:20:00+00:00" in logs
+        assert "batch start: 2020-01-01 00:20:00+00:00" in logs
+        assert "batch end: 2020-01-01 00:40:00+00:00" in logs
+        assert "batch start: 2020-01-01 00:40:00+00:00" in logs
+        assert "batch end: 2020-01-01 01:00:00+00:00" in logs
+
+
+class TestMicrobatchInvalidFullRefreshRange(BaseMicrobatchTest):
+    def test_invalid_range_preserves_existing_relation(self, project):
+        with patch_microbatch_end_time("2020-01-03 13:57:00"):
+            run_dbt(["run"])
+        self.assert_row_count(project, "microbatch_model", 3)
+
+        write_file(
+            microbatch_model_future_begin_sql,
+            project.project_root,
+            "models",
+            "microbatch_model.sql",
+        )
+        with patch_microbatch_end_time("2020-01-03 13:57:00"):
+            _, logs = run_dbt_and_capture(["run", "--full-refresh"], expect_pass=False)
+
+        assert "must be less than end time" in logs
+        self.assert_row_count(project, "microbatch_model", 3)
 
 
 class TestMicrobatchCLIRunOutputJSON(BaseMicrobatchTest):

@@ -8,6 +8,7 @@ from dbt.cli.option_types import (
     ChoiceTuple,
     Package,
     SampleType,
+    UTCDateTime,
     WarnErrorOptionsType,
 )
 from dbt.cli.options import MultiOption
@@ -195,16 +196,16 @@ empty_catalog = _create_option_and_track_env_var(
 event_time_end = _create_option_and_track_env_var(
     "--event-time-end",
     envvar="DBT_EVENT_TIME_END",
-    help="If specified, the end datetime dbt uses to filter microbatch model inputs (exclusive).",
-    type=click.DateTime(),
+    help="If specified, the end datetime dbt uses to filter microbatch model inputs (exclusive). Explicit ISO offsets are converted to UTC.",
+    type=UTCDateTime(),
     default=None,
 )
 
 event_time_start = _create_option_and_track_env_var(
     "--event-time-start",
     envvar="DBT_EVENT_TIME_START",
-    help="If specified, the start datetime dbt uses to filter microbatch model inputs (inclusive).",
-    type=click.DateTime(),
+    help="If specified, the start datetime dbt uses to filter microbatch model inputs (inclusive). Explicit ISO offsets are converted to UTC.",
+    type=UTCDateTime(),
     default=None,
 )
 

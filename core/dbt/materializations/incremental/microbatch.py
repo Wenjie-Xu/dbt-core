@@ -6,6 +6,7 @@ import pytz
 from dbt.artifacts.resources.types import BatchSize
 from dbt.artifacts.schemas.batch_results import BatchType
 from dbt.contracts.graph.nodes import ModelNode, NodeConfig
+from dbt.event_time.event_time import normalize_datetime_to_utc
 from dbt.exceptions import DbtInternalError, DbtRuntimeError
 
 
@@ -33,10 +34,12 @@ class MicrobatchBuilder:
 
         self.is_incremental = is_incremental
         self.event_time_start = (
-            event_time_start.replace(tzinfo=pytz.UTC) if event_time_start else None
+            normalize_datetime_to_utc(event_time_start) if event_time_start else None
         )
-        self.event_time_end = event_time_end.replace(tzinfo=pytz.UTC) if event_time_end else None
-        self.default_end_time = default_end_time or datetime.now(pytz.UTC)
+        self.event_time_end = normalize_datetime_to_utc(event_time_end) if event_time_end else None
+        self.default_end_time = normalize_datetime_to_utc(
+            default_end_time or datetime.now(pytz.UTC)
+        )
 
     def _batch_interval(self) -> int:
         """Return the configured interval, defaulting to one unit."""
@@ -69,6 +72,7 @@ class MicrobatchBuilder:
         via the batchsize and offset, and we cannot offset a checkpoint if there is no checkpoint.
         """
         assert isinstance(self.model.config, NodeConfig)
+        checkpoint = normalize_datetime_to_utc(checkpoint) if checkpoint else None
         batch_size = self.model.config.batch_size
         batch_interval = self._batch_interval()
 
@@ -106,9 +110,16 @@ class MicrobatchBuilder:
 
     def build_batches(self, start: datetime, end: datetime) -> List[BatchType]:
         """
-        Given a start and end datetime, builds a list of batches where each batch is
-        the size of the model's batch_size (times the configured batch_interval).
+        Given a start and end datetime, builds a list of UTC-aware batches where each
+        batch is the size of the model's batch_size (times the configured batch_interval).
         """
+        start = normalize_datetime_to_utc(start)
+        end = normalize_datetime_to_utc(end)
+        if start >= end:
+            raise DbtRuntimeError(
+                f"Microbatch start time '{start}' must be less than end time '{end}'."
+            )
+
         batch_size = self.model.config.batch_size
         batch_interval = self._batch_interval()
         curr_batch_start: datetime = start
@@ -202,9 +213,10 @@ class MicrobatchBuilder:
     def truncate_timestamp(
         timestamp: datetime, batch_size: BatchSize, batch_interval: int = 1
     ) -> datetime:
-        """Truncates the passed in timestamp based on the batch_size.
+        """Truncates the passed in timestamp in UTC based on the batch_size.
 
-        For `BatchSize.minute`, the timestamp is truncated to the nearest lower boundary
+        The returned datetime is always UTC-aware. For `BatchSize.minute`, the timestamp
+        is truncated to the nearest lower boundary
         aligned to `batch_interval` minutes within the hour (e.g. interval=20: 10:07 -> 10:00).
         Other batch sizes are truncated to their normal unit boundary; `batch_interval`
         controls the distance between those boundaries.
@@ -215,6 +227,7 @@ class MicrobatchBuilder:
         2024-09-17 16:06:00 + Batchsize.month -> 2024-09-01 00:00:00
         2024-09-17 16:06:00 + Batchsize.year -> 2024-01-01 00:00:00
         """
+        timestamp = normalize_datetime_to_utc(timestamp)
         if batch_size == BatchSize.minute:
             if (
                 not isinstance(batch_interval, int)
@@ -285,7 +298,7 @@ class MicrobatchBuilder:
     def ceiling_timestamp(
         timestamp: datetime, batch_size: BatchSize, batch_interval: int = 1
     ) -> datetime:
-        """Takes the given timestamp and moves it to the ceiling for the given batch size
+        """Move the timestamp to its UTC-aware ceiling for the given batch size.
 
         Note, if the timestamp is already the batch size ceiling, that is returned
         2024-09-17 16:06:00 + BatchSize.minute (batch_interval=20) -> 2024-09-17 16:20:00
@@ -299,6 +312,7 @@ class MicrobatchBuilder:
         2024-01-01 00:00:00 + BatchSize.year -> 2024-01-01 00:00:00
 
         """
+        timestamp = normalize_datetime_to_utc(timestamp)
         ceiling = truncated = MicrobatchBuilder.truncate_timestamp(
             timestamp, batch_size, batch_interval
         )

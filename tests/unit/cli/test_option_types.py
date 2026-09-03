@@ -6,7 +6,7 @@ import pytest
 import pytz
 from click import BadParameter, Option
 
-from dbt.cli.option_types import YAML, SampleType
+from dbt.cli.option_types import YAML, SampleType, UTCDateTime
 from dbt.event_time.sample_window import SampleWindow
 
 
@@ -32,6 +32,41 @@ class TestYAML:
         assert "--vars" in e.value.format_message()
 
 
+class TestUTCDateTime:
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (
+                "2026-09-03T16:00:00+08:00",
+                datetime(2026, 9, 3, 8, 0, tzinfo=pytz.UTC),
+            ),
+            (
+                "2026-09-03T08:00:00Z",
+                datetime(2026, 9, 3, 8, 0, tzinfo=pytz.UTC),
+            ),
+            ("2026-09-03", datetime(2026, 9, 3, 0, 0, tzinfo=pytz.UTC)),
+            (
+                "2026-09-03T08:00:00",
+                datetime(2026, 9, 3, 8, 0, tzinfo=pytz.UTC),
+            ),
+            (
+                "2026-09-03 08:00:00",
+                datetime(2026, 9, 3, 8, 0, tzinfo=pytz.UTC),
+            ),
+        ],
+    )
+    def test_convert_returns_utc_aware_datetime(self, value, expected):
+        assert UTCDateTime().convert(value, Option(["--event-time-start"]), None) == expected
+
+    def test_convert_rejects_named_timezone(self):
+        with pytest.raises(BadParameter):
+            UTCDateTime().convert(
+                "2026-09-03T16:00:00 Asia/Shanghai",
+                Option(["--event-time-start"]),
+                None,
+            )
+
+
 class TestSampleType:
     @pytest.mark.parametrize(
         "input,expected_result",
@@ -41,6 +76,13 @@ class TestSampleType:
                 SampleWindow(
                     start=datetime(2025, 1, 24, 0, 0, 0, 0, pytz.UTC),
                     end=datetime(2025, 1, 27, 0, 0, 0, 0, pytz.UTC),
+                ),
+            ),
+            (
+                "{'start': '2026-09-03T16:00:00+08:00', 'end': '2026-09-03T17:00:00+08:00'}",
+                SampleWindow(
+                    start=datetime(2026, 9, 3, 8, 0, 0, 0, pytz.UTC),
+                    end=datetime(2026, 9, 3, 9, 0, 0, 0, pytz.UTC),
                 ),
             ),
             (

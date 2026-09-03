@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
@@ -7,6 +7,7 @@ from freezegun import freeze_time
 
 from dbt.artifacts.resources import NodeConfig
 from dbt.artifacts.resources.types import BatchSize
+from dbt.exceptions import DbtRuntimeError
 from dbt.materializations.incremental.microbatch import MicrobatchBuilder
 
 MODEL_CONFIG_BEGIN = datetime(2024, 1, 1, 0, 0, 0, 0, pytz.UTC)
@@ -517,6 +518,101 @@ class TestMicrobatchBuilder:
         assert len(actual_batches) == len(expected_batches)
         assert actual_batches == expected_batches
 
+    def test_builder_normalizes_explicit_offsets_to_utc(self, microbatch_model):
+        offset = timezone(timedelta(hours=8))
+        microbatch_builder = MicrobatchBuilder(
+            model=microbatch_model,
+            is_incremental=True,
+            event_time_start=datetime(2026, 9, 3, 16, 0, tzinfo=offset),
+            event_time_end=datetime(2026, 9, 3, 17, 0, tzinfo=offset),
+            default_end_time=datetime(2026, 9, 3, 18, 0, tzinfo=offset),
+        )
+
+        assert microbatch_builder.event_time_start == datetime(
+            2026, 9, 3, 8, 0, tzinfo=timezone.utc
+        )
+        assert microbatch_builder.event_time_end == datetime(2026, 9, 3, 9, 0, tzinfo=timezone.utc)
+        assert microbatch_builder.default_end_time == datetime(
+            2026, 9, 3, 10, 0, tzinfo=timezone.utc
+        )
+
+    def test_build_start_time_truncates_offset_begin_in_utc(self, microbatch_model):
+        microbatch_model.config.batch_size = BatchSize.minute
+        microbatch_model.config.batch_interval = 20
+        microbatch_model.config.begin = datetime.fromisoformat("2026-09-03T16:07:00+08:00")
+        microbatch_builder = MicrobatchBuilder(
+            model=microbatch_model,
+            is_incremental=False,
+            event_time_start=None,
+            event_time_end=None,
+        )
+
+        assert microbatch_builder.build_start_time(None) == datetime(
+            2026, 9, 3, 8, 0, tzinfo=timezone.utc
+        )
+
+    def test_build_end_time_ceilings_offset_in_utc(self, microbatch_model):
+        microbatch_model.config.batch_size = BatchSize.minute
+        microbatch_model.config.batch_interval = 20
+        microbatch_builder = MicrobatchBuilder(
+            model=microbatch_model,
+            is_incremental=True,
+            event_time_start=None,
+            event_time_end=datetime.fromisoformat("2026-09-03T16:07:00+08:00"),
+        )
+
+        assert microbatch_builder.build_end_time() == datetime(
+            2026, 9, 3, 8, 20, tzinfo=timezone.utc
+        )
+
+    def test_build_batches_normalizes_explicit_offsets_to_utc(self, microbatch_model):
+        microbatch_model.config.batch_size = BatchSize.minute
+        microbatch_model.config.batch_interval = 20
+        microbatch_builder = MicrobatchBuilder(
+            model=microbatch_model, is_incremental=True, event_time_start=None, event_time_end=None
+        )
+
+        assert microbatch_builder.build_batches(
+            datetime.fromisoformat("2026-09-03T16:00:00+08:00"),
+            datetime.fromisoformat("2026-09-03T17:00:00+08:00"),
+        ) == [
+            (
+                datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc),
+                datetime(2026, 9, 3, 8, 20, tzinfo=timezone.utc),
+            ),
+            (
+                datetime(2026, 9, 3, 8, 20, tzinfo=timezone.utc),
+                datetime(2026, 9, 3, 8, 40, tzinfo=timezone.utc),
+            ),
+            (
+                datetime(2026, 9, 3, 8, 40, tzinfo=timezone.utc),
+                datetime(2026, 9, 3, 9, 0, tzinfo=timezone.utc),
+            ),
+        ]
+
+    @pytest.mark.parametrize(
+        "start,end",
+        [
+            (
+                datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc),
+                datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc),
+            ),
+            (
+                datetime(2026, 9, 3, 9, 0, tzinfo=timezone.utc),
+                datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc),
+            ),
+        ],
+    )
+    def test_build_batches_rejects_non_increasing_range(self, microbatch_model, start, end):
+        microbatch_model.config.batch_size = BatchSize.minute
+        microbatch_model.config.batch_interval = 20
+        microbatch_builder = MicrobatchBuilder(
+            model=microbatch_model, is_incremental=True, event_time_start=None, event_time_end=None
+        )
+
+        with pytest.raises(DbtRuntimeError, match="start.*less than.*end"):
+            microbatch_builder.build_batches(start, end)
+
     @pytest.mark.parametrize(
         "batch_size,batch_interval,start,end,expected_batches",
         [
@@ -769,6 +865,16 @@ class TestMicrobatchBuilder:
             MicrobatchBuilder.truncate_timestamp(timestamp, batch_size, batch_interval)
             == expected_timestamp
         )
+
+    def test_truncate_timestamp_normalizes_explicit_offset_to_utc(self):
+        assert MicrobatchBuilder.truncate_timestamp(
+            datetime.fromisoformat("2026-09-03T16:07:00+08:00"), BatchSize.minute, 20
+        ) == datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc)
+
+    def test_ceiling_timestamp_normalizes_explicit_offset_to_utc(self):
+        assert MicrobatchBuilder.ceiling_timestamp(
+            datetime.fromisoformat("2026-09-03T16:07:00+08:00"), BatchSize.minute, 20
+        ) == datetime(2026, 9, 3, 8, 20, tzinfo=timezone.utc)
 
     @pytest.mark.parametrize(
         "batch_size,start_time,expected_formatted_start_time",

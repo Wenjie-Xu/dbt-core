@@ -1,9 +1,9 @@
 from typing import Optional
 
-import pytz
-from click import Choice, Context, Parameter, ParamType
+from click import Choice, Context, DateTime, Parameter, ParamType
 
 from dbt.config.utils import normalize_warn_error_options, parse_cli_yaml_string
+from dbt.event_time.event_time import normalize_datetime_to_utc
 from dbt.event_time.sample_window import SampleWindow
 from dbt.events import ALL_EVENT_NAMES
 from dbt.exceptions import OptionNotYamlDictError, ValidationError
@@ -94,6 +94,24 @@ class ChoiceTuple(Choice):
         return value
 
 
+class UTCDateTime(DateTime):
+    """Parse supported ISO datetime values and normalize them to UTC."""
+
+    def __init__(self):
+        super().__init__(
+            formats=[
+                "%Y-%m-%dT%H:%M:%S%z",
+                "%Y-%m-%d %H:%M:%S%z",
+                "%Y-%m-%d",
+                "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%d %H:%M:%S",
+            ]
+        )
+
+    def convert(self, value, param, ctx):
+        return normalize_datetime_to_utc(super().convert(value, param, ctx))
+
+
 class SampleType(ParamType):
     name = "SAMPLE"
 
@@ -110,8 +128,8 @@ class SampleType(ParamType):
                     param_option_name: str = param.opts[0] if param.opts else param.name  # type: ignore
                     parsed_dict = parse_cli_yaml_string(value, param_option_name.strip("-"))
                     sample_window = SampleWindow.from_dict(parsed_dict)
-                    sample_window.start = sample_window.start.replace(tzinfo=pytz.UTC)
-                    sample_window.end = sample_window.end.replace(tzinfo=pytz.UTC)
+                    sample_window.start = normalize_datetime_to_utc(sample_window.start)
+                    sample_window.end = normalize_datetime_to_utc(sample_window.end)
                     return sample_window
                 else:
                     return SampleWindow.from_relative_string(value)

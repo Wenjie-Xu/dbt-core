@@ -1,9 +1,16 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dateutil.relativedelta import relativedelta
 
 from dbt.artifacts.resources.types import BatchSize
 from dbt_common.exceptions import DbtRuntimeError
+
+
+def normalize_datetime_to_utc(timestamp: datetime) -> datetime:
+    """Return a UTC-aware datetime without changing its represented instant."""
+    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+        return timestamp.replace(tzinfo=timezone.utc)
+    return timestamp.astimezone(timezone.utc)
 
 
 def offset_timestamp(timestamp=datetime, batch_size=BatchSize, offset=int) -> datetime:

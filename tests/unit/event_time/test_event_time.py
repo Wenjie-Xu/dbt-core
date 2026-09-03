@@ -1,13 +1,42 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone, tzinfo
 
 import pytest
 import pytz
 
 from dbt.artifacts.resources.types import BatchSize
-from dbt.event_time.event_time import offset_timestamp
+from dbt.event_time.event_time import normalize_datetime_to_utc, offset_timestamp
+
+
+class NoneOffsetTimezone(tzinfo):
+    def utcoffset(self, dt):
+        return None
 
 
 class TestEventTime:
+
+    @pytest.mark.parametrize(
+        "timestamp,expected_timestamp",
+        [
+            (
+                datetime(2026, 9, 3, 8, 0),
+                datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc),
+            ),
+            (
+                datetime(2026, 9, 3, 16, 0, tzinfo=NoneOffsetTimezone()),
+                datetime(2026, 9, 3, 16, 0, tzinfo=timezone.utc),
+            ),
+            (
+                datetime(2026, 9, 3, 16, 0, tzinfo=timezone(timedelta(hours=8))),
+                datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc),
+            ),
+            (
+                datetime(2026, 9, 3, 2, 0, tzinfo=timezone(-timedelta(hours=6))),
+                datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc),
+            ),
+        ],
+    )
+    def test_normalize_datetime_to_utc(self, timestamp, expected_timestamp):
+        assert normalize_datetime_to_utc(timestamp) == expected_timestamp
 
     @pytest.mark.parametrize(
         "timestamp,batch_size,offset,expected_timestamp",

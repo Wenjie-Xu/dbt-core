@@ -9,6 +9,9 @@ class TestEventTimeEndEventTimeStart:
         [
             ("2024-10-01", "2024-10-02", True),
             ("2024-10-02", "2024-10-01", False),
+            ("2026-09-03T16:00:00+08:00", "2026-09-03T09:00:00+00:00", True),
+            ("2026-09-03T16:00:00+08:00", "2026-09-03T08:00:00+00:00", False),
+            ("2026-09-03T17:00:00+08:00", "2026-09-03T08:30:00+00:00", False),
         ],
     )
     def test_option_combo(self, project, event_time_start, event_time_end, expect_pass):
