@@ -127,7 +127,7 @@ from dbt_common.exceptions import DbtRuntimeError
         (
             "1 week",
             DbtRuntimeError(
-                "Invalid grain size 'week'. Must be one of ['hour', 'day', 'month', 'year', 'hours', 'days', 'months', 'years']."
+                "Invalid grain size 'week'. Must be one of ['minute', 'hour', 'day', 'month', 'year', 'minutes', 'hours', 'days', 'months', 'years']."
             ),
         ),
         ("an hour", DbtRuntimeError("Unable to convert 'an' to an integer.")),

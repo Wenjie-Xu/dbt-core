@@ -71,6 +71,7 @@ class TimePeriod(StrEnum):
 
 
 class BatchSize(StrEnum):
+    minute = "minute"
     hour = "hour"
     day = "day"
     month = "month"

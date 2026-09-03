@@ -1316,6 +1316,7 @@
     "DbtBatchSize": {
       "type": "string",
       "enum": [
+        "minute",
         "hour",
         "day",
         "month",
@@ -2655,6 +2656,13 @@
               "type": "null"
             }
           ]
+        },
+        "batch_interval": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
         },
         "begin": {
           "type": [

@@ -16,6 +16,8 @@ def offset_timestamp(timestamp=datetime, batch_size=BatchSize, offset=int) -> da
     done in `MicrobatchBuilder.offset_timestamp`
 
     Examples
+    2024-09-17 16:06:00 + Batchsize.minute -1 -> 2024-09-17 16:05:00
+    2024-09-17 16:06:00 + Batchsize.minute +20 -> 2024-09-17 16:26:00
     2024-09-17 16:06:00 + Batchsize.hour -1 -> 2024-09-17 15:06:00
     2024-09-17 16:06:00 + Batchsize.hour +1 -> 2024-09-17 17:06:00
     2024-09-17 16:06:00 + Batchsize.day -1 -> 2024-09-16 16:06:00
@@ -28,7 +30,9 @@ def offset_timestamp(timestamp=datetime, batch_size=BatchSize, offset=int) -> da
     2024-02-29 16:06:00 + Batchsize.year +1 -> 2025-02-28 16:06:00
     """
 
-    if batch_size == BatchSize.hour:
+    if batch_size == BatchSize.minute:
+        return timestamp + relativedelta(minutes=offset)
+    elif batch_size == BatchSize.hour:
         return timestamp + relativedelta(hours=offset)
     elif batch_size == BatchSize.day:
         return timestamp + relativedelta(days=offset)

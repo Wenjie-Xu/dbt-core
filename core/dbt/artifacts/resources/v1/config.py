@@ -81,6 +81,9 @@ class NodeConfig(NodeAndTestConfig):
     materialized: str = "view"
     incremental_strategy: Optional[str] = None
     batch_size: Any = None
+    # `Any` (like `batch_size`/`lookback`) so yaml-provided values aren't coerced before
+    # `check_valid_microbatch_config` can validate them (e.g. reject non-int like 1.5).
+    batch_interval: Any = None
     lookback: Any = 1
     begin: Any = None
     persist_docs: Dict[str, Any] = field(default_factory=dict)

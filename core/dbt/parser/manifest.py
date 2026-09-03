@@ -1469,6 +1469,20 @@ class ManifestLoader:
                             f"Microbatch model '{node.name}' must provide a 'batch_size' config that is one of {valid_batch_sizes}, but got: {batch_size}."
                         )
 
+                    # Optional config: batch_interval (positive int)
+                    # Currently only applies to batch_size 'minute', where it defines how
+                    # many minutes each batch spans. `bool` is explicitly rejected even
+                    # though it is a subclass of `int`.
+                    batch_interval = node.config.batch_interval
+                    if batch_interval is not None and (
+                        not isinstance(batch_interval, int)
+                        or isinstance(batch_interval, bool)
+                        or batch_interval <= 0
+                    ):
+                        raise dbt.exceptions.ParsingError(
+                            f"Microbatch model '{node.name}' optional 'batch_interval' config must be a positive int if specified, but got: {batch_interval}."
+                        )
+
                     # Optional config: lookback (int)
                     lookback = node.config.lookback
                     if not isinstance(lookback, int) and lookback is not None:

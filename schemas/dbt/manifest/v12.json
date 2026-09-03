@@ -331,6 +331,9 @@
                   "batch_size": {
                     "default": null
                   },
+                  "batch_interval": {
+                    "default": null
+                  },
                   "lookback": {
                     "default": 1
                   },
@@ -1039,6 +1042,9 @@
                               "batch_size": {
                                 "default": null
                               },
+                              "batch_interval": {
+                                "default": null
+                              },
                               "lookback": {
                                 "default": 1
                               },
@@ -1426,6 +1432,9 @@
                     "default": null
                   },
                   "batch_size": {
+                    "default": null
+                  },
+                  "batch_interval": {
                     "default": null
                   },
                   "lookback": {
@@ -2950,6 +2959,9 @@
                   "batch_size": {
                     "default": null
                   },
+                  "batch_interval": {
+                    "default": null
+                  },
                   "lookback": {
                     "default": 1
                   },
@@ -3790,6 +3802,9 @@
                     "default": null
                   },
                   "batch_size": {
+                    "default": null
+                  },
+                  "batch_interval": {
                     "default": null
                   },
                   "lookback": {
@@ -4802,6 +4817,9 @@
                               "batch_size": {
                                 "default": null
                               },
+                              "batch_interval": {
+                                "default": null
+                              },
                               "lookback": {
                                 "default": 1
                               },
@@ -5284,6 +5302,9 @@
                     "default": null
                   },
                   "batch_size": {
+                    "default": null
+                  },
+                  "batch_interval": {
                     "default": null
                   },
                   "lookback": {
@@ -6869,6 +6890,9 @@
                   "batch_size": {
                     "default": null
                   },
+                  "batch_interval": {
+                    "default": null
+                  },
                   "lookback": {
                     "default": 1
                   },
@@ -7839,6 +7863,9 @@
                                 "default": null
                               },
                               "batch_size": {
+                                "default": null
+                              },
+                              "batch_interval": {
                                 "default": null
                               },
                               "lookback": {
@@ -10714,6 +10741,9 @@
                         "batch_size": {
                           "default": null
                         },
+                        "batch_interval": {
+                          "default": null
+                        },
                         "lookback": {
                           "default": 1
                         },
@@ -11422,6 +11452,9 @@
                                     "batch_size": {
                                       "default": null
                                     },
+                                    "batch_interval": {
+                                      "default": null
+                                    },
                                     "lookback": {
                                       "default": 1
                                     },
@@ -11809,6 +11842,9 @@
                           "default": null
                         },
                         "batch_size": {
+                          "default": null
+                        },
+                        "batch_interval": {
                           "default": null
                         },
                         "lookback": {
@@ -13333,6 +13369,9 @@
                         "batch_size": {
                           "default": null
                         },
+                        "batch_interval": {
+                          "default": null
+                        },
                         "lookback": {
                           "default": 1
                         },
@@ -14173,6 +14212,9 @@
                           "default": null
                         },
                         "batch_size": {
+                          "default": null
+                        },
+                        "batch_interval": {
                           "default": null
                         },
                         "lookback": {
@@ -15185,6 +15227,9 @@
                                     "batch_size": {
                                       "default": null
                                     },
+                                    "batch_interval": {
+                                      "default": null
+                                    },
                                     "lookback": {
                                       "default": 1
                                     },
@@ -15667,6 +15712,9 @@
                           "default": null
                         },
                         "batch_size": {
+                          "default": null
+                        },
+                        "batch_interval": {
                           "default": null
                         },
                         "lookback": {
@@ -17252,6 +17300,9 @@
                         "batch_size": {
                           "default": null
                         },
+                        "batch_interval": {
+                          "default": null
+                        },
                         "lookback": {
                           "default": 1
                         },
@@ -18222,6 +18273,9 @@
                                       "default": null
                                     },
                                     "batch_size": {
+                                      "default": null
+                                    },
+                                    "batch_interval": {
                                       "default": null
                                     },
                                     "lookback": {

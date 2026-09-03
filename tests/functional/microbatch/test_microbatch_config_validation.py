@@ -65,6 +65,54 @@ invalid_batch_size_microbatch_model_sql = """
 select * from {{ ref('input_model') }}
 """
 
+valid_microbatch_model_minute_batch_interval_yml = """
+models:
+  - name: microbatch
+    config:
+      materialized: incremental
+      incremental_strategy: microbatch
+      batch_size: minute
+      batch_interval: 20
+      event_time: event_time
+      begin: 2020-01-01
+"""
+
+invalid_microbatch_model_zero_batch_interval_yml = """
+models:
+  - name: microbatch
+    config:
+      materialized: incremental
+      incremental_strategy: microbatch
+      batch_size: minute
+      batch_interval: 0
+      event_time: event_time
+      begin: 2020-01-01
+"""
+
+invalid_microbatch_model_negative_batch_interval_yml = """
+models:
+  - name: microbatch
+    config:
+      materialized: incremental
+      incremental_strategy: microbatch
+      batch_size: minute
+      batch_interval: -20
+      event_time: event_time
+      begin: 2020-01-01
+"""
+
+invalid_microbatch_model_non_integer_batch_interval_yml = """
+models:
+  - name: microbatch
+    config:
+      materialized: incremental
+      incremental_strategy: microbatch
+      batch_size: minute
+      batch_interval: 1.5
+      event_time: event_time
+      begin: 2020-01-01
+"""
+
 invalid_event_time_input_model_sql = """
 {{ config(materialized='table', event_time=1) }}
 
@@ -193,4 +241,62 @@ class TestValidBeginMicrobatch(BaseMicrobatchTestNoError):
             "input_model.sql": valid_input_model_sql,
             "microbatch.sql": valid_microbatch_model_no_config_sql,
             "schema.yml": valid_microbatch_model_config_yml,
+        }
+
+
+class TestValidMinuteBatchIntervalMicrobatch(BaseMicrobatchTestNoError):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "input_model.sql": valid_input_model_sql,
+            "microbatch.sql": valid_microbatch_model_no_config_sql,
+            "schema.yml": valid_microbatch_model_minute_batch_interval_yml,
+        }
+
+
+class BaseMicrobatchTestInvalidBatchInterval:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {}
+
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "flags": {
+                "require_batched_execution_for_custom_microbatch_strategy": True,
+            }
+        }
+
+    def test_parsing_error_raised(self, project):
+        with pytest.raises(ParsingError, match="batch_interval.*positive int"):
+            run_dbt(["parse"])
+
+
+class TestZeroBatchIntervalMicrobatch(BaseMicrobatchTestInvalidBatchInterval):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "input_model.sql": valid_input_model_sql,
+            "microbatch.sql": valid_microbatch_model_no_config_sql,
+            "schema.yml": invalid_microbatch_model_zero_batch_interval_yml,
+        }
+
+
+class TestNegativeBatchIntervalMicrobatch(BaseMicrobatchTestInvalidBatchInterval):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "input_model.sql": valid_input_model_sql,
+            "microbatch.sql": valid_microbatch_model_no_config_sql,
+            "schema.yml": invalid_microbatch_model_negative_batch_interval_yml,
+        }
+
+
+class TestNonIntegerBatchIntervalMicrobatch(BaseMicrobatchTestInvalidBatchInterval):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "input_model.sql": valid_input_model_sql,
+            "microbatch.sql": valid_microbatch_model_no_config_sql,
+            "schema.yml": invalid_microbatch_model_non_integer_batch_interval_yml,
         }

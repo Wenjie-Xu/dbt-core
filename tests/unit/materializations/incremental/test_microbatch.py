@@ -489,6 +489,34 @@ class TestMicrobatchBuilder:
         assert len(actual_batches) == len(expected_batches)
         assert actual_batches == expected_batches
 
+    def test_build_batches_minute_batch_interval(self, microbatch_model):
+        microbatch_model.config.batch_size = BatchSize.minute
+        microbatch_model.config.batch_interval = 20
+        microbatch_builder = MicrobatchBuilder(
+            model=microbatch_model, is_incremental=True, event_time_start=None, event_time_end=None
+        )
+
+        actual_batches = microbatch_builder.build_batches(
+            datetime(2026, 9, 2, 10, 0, 0, 0, pytz.UTC),
+            datetime(2026, 9, 2, 11, 0, 0, 0, pytz.UTC),
+        )
+        expected_batches = [
+            (
+                datetime(2026, 9, 2, 10, 0, 0, 0, pytz.UTC),
+                datetime(2026, 9, 2, 10, 20, 0, 0, pytz.UTC),
+            ),
+            (
+                datetime(2026, 9, 2, 10, 20, 0, 0, pytz.UTC),
+                datetime(2026, 9, 2, 10, 40, 0, 0, pytz.UTC),
+            ),
+            (
+                datetime(2026, 9, 2, 10, 40, 0, 0, pytz.UTC),
+                datetime(2026, 9, 2, 11, 0, 0, 0, pytz.UTC),
+            ),
+        ]
+        assert len(actual_batches) == len(expected_batches)
+        assert actual_batches == expected_batches
+
     def test_build_jinja_context_for_incremental_batch(self, microbatch_model):
         context = MicrobatchBuilder.build_jinja_context_for_batch(
             model=microbatch_model,
@@ -575,6 +603,35 @@ class TestMicrobatchBuilder:
         )
 
     @pytest.mark.parametrize(
+        "timestamp,batch_size,offset,batch_interval,expected_timestamp",
+        [
+            (
+                datetime(2026, 9, 2, 10, 0, 0, 0, pytz.UTC),
+                BatchSize.minute,
+                1,
+                20,
+                datetime(2026, 9, 2, 10, 20, 0, 0, pytz.UTC),
+            ),
+            (
+                datetime(2026, 9, 2, 10, 0, 0, 0, pytz.UTC),
+                BatchSize.minute,
+                -1,
+                20,
+                datetime(2026, 9, 2, 9, 40, 0, 0, pytz.UTC),
+            ),
+        ],
+    )
+    def test_offset_timestamp_with_batch_interval(
+        self, timestamp, batch_size, offset, batch_interval, expected_timestamp
+    ):
+        assert (
+            MicrobatchBuilder.offset_timestamp(
+                timestamp, batch_size, offset, batch_interval=batch_interval
+            )
+            == expected_timestamp
+        )
+
+    @pytest.mark.parametrize(
         "timestamp,batch_size,expected_timestamp",
         [
             (
@@ -603,12 +660,38 @@ class TestMicrobatchBuilder:
         assert MicrobatchBuilder.truncate_timestamp(timestamp, batch_size) == expected_timestamp
 
     @pytest.mark.parametrize(
+        "timestamp,batch_size,batch_interval,expected_timestamp",
+        [
+            (
+                datetime(2026, 9, 2, 10, 7, 0, 0, pytz.UTC),
+                BatchSize.minute,
+                20,
+                datetime(2026, 9, 2, 10, 0, 0, 0, pytz.UTC),
+            ),
+            (
+                datetime(2026, 9, 2, 10, 20, 0, 0, pytz.UTC),
+                BatchSize.minute,
+                20,
+                datetime(2026, 9, 2, 10, 20, 0, 0, pytz.UTC),
+            ),
+        ],
+    )
+    def test_truncate_timestamp_with_batch_interval(
+        self, timestamp, batch_size, batch_interval, expected_timestamp
+    ):
+        assert (
+            MicrobatchBuilder.truncate_timestamp(timestamp, batch_size, batch_interval)
+            == expected_timestamp
+        )
+
+    @pytest.mark.parametrize(
         "batch_size,start_time,expected_formatted_start_time",
         [
             (BatchSize.year, datetime(2020, 1, 1, 1), "2020"),
             (BatchSize.month, datetime(2020, 1, 1, 1), "202001"),
             (BatchSize.day, datetime(2020, 1, 1, 1), "20200101"),
             (BatchSize.hour, datetime(2020, 1, 1, 1), "20200101T01"),
+            (BatchSize.minute, datetime(2026, 9, 2, 10, 20), "20260902T1020"),
         ],
     )
     def test_batch_id(
@@ -623,6 +706,7 @@ class TestMicrobatchBuilder:
             (BatchSize.month, datetime(2020, 1, 1, 1), "2020-01"),
             (BatchSize.day, datetime(2020, 1, 1, 1), "2020-01-01"),
             (BatchSize.hour, datetime(2020, 1, 1, 1), "2020-01-01T01"),
+            (BatchSize.minute, datetime(2026, 9, 2, 10, 20), "2026-09-02T1020"),
         ],
     )
     def test_format_batch_start(
@@ -682,4 +766,31 @@ class TestMicrobatchBuilder:
         self, timestamp: datetime, batch_size: BatchSize, expected_datetime: datetime
     ) -> None:
         ceilinged = MicrobatchBuilder.ceiling_timestamp(timestamp, batch_size)
+        assert ceilinged == expected_datetime
+
+    @pytest.mark.parametrize(
+        "timestamp,batch_size,batch_interval,expected_datetime",
+        [
+            (
+                datetime(2026, 9, 2, 10, 7, 0, 0, pytz.UTC),
+                BatchSize.minute,
+                20,
+                datetime(2026, 9, 2, 10, 20, 0, 0, pytz.UTC),
+            ),
+            (
+                datetime(2026, 9, 2, 10, 20, 0, 0, pytz.UTC),
+                BatchSize.minute,
+                20,
+                datetime(2026, 9, 2, 10, 20, 0, 0, pytz.UTC),
+            ),
+        ],
+    )
+    def test_ceiling_timestamp_with_batch_interval(
+        self,
+        timestamp: datetime,
+        batch_size: BatchSize,
+        batch_interval: int,
+        expected_datetime: datetime,
+    ) -> None:
+        ceilinged = MicrobatchBuilder.ceiling_timestamp(timestamp, batch_size, batch_interval)
         assert ceilinged == expected_datetime
