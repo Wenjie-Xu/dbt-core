@@ -41,7 +41,11 @@ class MicrobatchBuilder:
     def _batch_interval(self) -> int:
         """Return the configured interval, defaulting to one unit."""
         batch_interval = self.model.config.batch_interval
-        if batch_interval is None or not isinstance(batch_interval, int) or isinstance(batch_interval, bool):
+        if (
+            batch_interval is None
+            or not isinstance(batch_interval, int)
+            or isinstance(batch_interval, bool)
+        ):
             return 1
         if batch_interval <= 0:
             raise DbtRuntimeError(
