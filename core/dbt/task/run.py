@@ -360,7 +360,7 @@ class MicrobatchBatchRunner(ModelRunner):
 
     def describe_batch(self) -> str:
         batch_start = self.batches[self.batch_idx][0]
-        formatted_batch_start = MicrobatchBuilder.format_batch_start(
+        formatted_batch_start = MicrobatchBuilder.format_batch_start_for_filename(
             batch_start, self.node.config.batch_size
         )
         return f"batch {formatted_batch_start} of {self.get_node_representation()}"

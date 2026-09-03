@@ -1,11 +1,13 @@
 from argparse import Namespace
 from dataclasses import dataclass
+from datetime import datetime
 from importlib import import_module
 from typing import Optional, Type, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
+import pytz
 from psycopg2 import DatabaseError
 from pytest_mock import MockerFixture
 
@@ -13,7 +15,7 @@ from core.dbt.task.run import MicrobatchBatchRunner
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.postgres import PostgresAdapter
 from dbt.artifacts.resources.base import FileHash
-from dbt.artifacts.resources.types import NodeType, RunHookType
+from dbt.artifacts.resources.types import BatchSize, NodeType, RunHookType
 from dbt.artifacts.resources.v1.components import DependsOn
 from dbt.artifacts.resources.v1.config import NodeConfig
 from dbt.artifacts.resources.v1.model import ModelConfig
@@ -303,6 +305,21 @@ class TestMicrobatchModelRunner:
 
         # Assert result of should_run_in_parallel
         assert batch_runner.should_run_in_parallel() == expectation
+
+    def test_describe_batch_uses_shanghai_timezone(
+        self,
+        batch_runner: MicrobatchBatchRunner,
+    ) -> None:
+        batch_runner.batches = {
+            0: (
+                datetime(2026, 9, 3, 8, 0, tzinfo=pytz.utc),
+                datetime(2026, 9, 3, 8, 1, tzinfo=pytz.utc),
+            )
+        }
+        batch_runner.node.config = ModelConfig(batch_size=BatchSize.minute)
+
+        # 2026-09-03 08:00 UTC is 2026-09-03 16:00 Asia/Shanghai
+        assert "batch 2026-09-03T1600" in batch_runner.describe_batch()
 
 
 class TestRunTask:
